@@ -4,6 +4,7 @@ import (
 	"go-blog/database"
 	"go-blog/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -66,4 +67,46 @@ func CreatePost(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, newPost)
 
+}
+
+func DeletePost(c *gin.Context) {
+
+	id := c.Param("id")
+
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Post ID is required"})
+		return
+	}
+
+	postID, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+
+	defer db.Close()
+
+	result, err := db.Exec("DELETE FROM posts WHERE id = ?", postID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete post"})
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check deletion"})
+		return
+	}
+
+	if rowsAffected == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Post not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
